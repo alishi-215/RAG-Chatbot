@@ -1,0 +1,1200 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Simple RAG Chat with Session Memory</title>
+    <style>
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+        
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 20px;
+            color: #333;
+        }
+        
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            background: white;
+            border-radius: 15px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.2);
+            overflow: hidden;
+            display: flex;
+            flex-direction: column;
+            height: 95vh;
+        }
+        
+        header {
+            background: linear-gradient(90deg, #4b6cb7 0%, #182848 100%);
+            color: white;
+            padding: 20px 25px;
+            text-align: center;
+            flex-shrink: 0;
+        }
+        
+        header h1 {
+            margin-bottom: 8px;
+            font-size: 2em;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 15px;
+        }
+        
+        .subtitle {
+            opacity: 0.9;
+            font-size: 1em;
+        }
+        
+        .main-content {
+            display: flex;
+            flex: 1;
+            overflow: hidden;
+        }
+        
+        .sidebar {
+            width: 300px;
+            background: #f8f9fa;
+            border-right: 1px solid #e9ecef;
+            padding: 20px;
+            overflow-y: auto;
+            flex-shrink: 0;
+        }
+        
+        .chat-area {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+        }
+        
+        .controls {
+            padding: 15px 20px;
+            background: #f8f9fa;
+            border-bottom: 1px solid #e9ecef;
+            display: flex;
+            gap: 10px;
+            flex-wrap: wrap;
+            align-items: center;
+            flex-shrink: 0;
+        }
+        
+        .btn {
+            padding: 10px 18px;
+            border: none;
+            border-radius: 8px;
+            font-size: 14px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            font-weight: 600;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            text-decoration: none;
+            white-space: nowrap;
+        }
+        
+        .btn-primary {
+            background: #4CAF50;
+            color: white;
+        }
+        
+        .btn-primary:hover {
+            background: #45a049;
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(76,175,80,0.3);
+        }
+        
+        .btn-secondary {
+            background: #2196F3;
+            color: white;
+        }
+        
+        .btn-secondary:hover {
+            background: #1976D2;
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(33,150,243,0.3);
+        }
+        
+        .btn-warning {
+            background: #ff9800;
+            color: white;
+        }
+        
+        .btn-warning:hover {
+            background: #f57c00;
+            transform: translateY(-2px);
+        }
+        
+        .btn-danger {
+            background: #f44336;
+            color: white;
+        }
+        
+        .btn-danger:hover {
+            background: #d32f2f;
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(244,67,54,0.3);
+        }
+        
+        .btn-purple {
+            background: #9c27b0;
+            color: white;
+        }
+        
+        .btn-purple:hover {
+            background: #7b1fa2;
+            transform: translateY(-2px);
+        }
+        
+        #chat-box {
+            flex: 1;
+            overflow-y: auto;
+            padding: 20px;
+            background: #fafafa;
+        }
+        
+        .message {
+            margin: 15px 0;
+            padding: 15px;
+            border-radius: 12px;
+            max-width: 85%;
+            animation: fadeIn 0.3s ease;
+        }
+        
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+        
+        .user {
+            background: linear-gradient(90deg, #667eea, #764ba2);
+            color: white;
+            margin-left: auto;
+            text-align: right;
+        }
+        
+        .bot {
+            background: white;
+            color: #333;
+            margin-right: auto;
+            border: 1px solid #e0e0e0;
+            border-left: 4px solid #4CAF50;
+        }
+        
+        .bot-memory {
+            border-left: 4px solid #ff9800;
+            background: #fff8e1;
+        }
+        
+        .chat-input {
+            padding: 15px 20px;
+            background: white;
+            border-top: 1px solid #e9ecef;
+            display: flex;
+            gap: 10px;
+            flex-shrink: 0;
+        }
+        
+        #query {
+            flex: 1;
+            padding: 12px 15px;
+            border: 2px solid #e9ecef;
+            border-radius: 8px;
+            font-size: 15px;
+            transition: border-color 0.3s;
+        }
+        
+        #query:focus {
+            outline: none;
+            border-color: #667eea;
+        }
+        
+        .btn-send {
+            background: linear-gradient(90deg, #667eea, #764ba2);
+            color: white;
+            padding: 12px 25px;
+            border: none;
+            border-radius: 8px;
+            font-size: 15px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+        
+        .btn-send:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(102,126,234,0.4);
+        }
+        
+        .message-header {
+            font-weight: bold;
+            margin-bottom: 8px;
+            font-size: 0.85em;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        
+        .user .message-header {
+            color: rgba(255,255,255,0.9);
+        }
+        
+        .bot .message-header {
+            color: #666;
+        }
+        
+        .message-time {
+            font-size: 0.75em;
+            opacity: 0.7;
+        }
+        
+        .status {
+            padding: 10px;
+            text-align: center;
+            background: #e3f2fd;
+            border-radius: 8px;
+            margin: 10px 0;
+            font-size: 0.9em;
+            color: #1976D2;
+        }
+        
+        .document-info {
+            background: white;
+            padding: 15px;
+            border-radius: 8px;
+            margin-bottom: 20px;
+            border: 1px solid #e0e0e0;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+        }
+        
+        .document-info h4 {
+            margin-bottom: 12px;
+            color: #1976D2;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+        
+        .document-item {
+            display: flex;
+            justify-content: space-between;
+            padding: 8px 0;
+            border-bottom: 1px solid #f0f0f0;
+        }
+        
+        .document-item:last-child {
+            border-bottom: none;
+        }
+        
+        .session-info {
+            background: white;
+            padding: 15px;
+            border-radius: 8px;
+            margin-bottom: 20px;
+            border: 1px solid #e0e0e0;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.05)
+        }
+        
+        .session-info h4 {
+            margin-bottom: 12px;
+            color: #9c27b0;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+        
+        .session-details {
+            font-size: 0.9em;
+            color: #666;
+            line-height: 1.5;
+        }
+        
+        .session-details div {
+            margin: 5px 0;
+        }
+        
+        .user-info {
+            background: #f0f7ff;
+            padding: 12px;
+            border-radius: 6px;
+            margin-top: 10px;
+            font-size: 0.85em;
+        }
+        
+        .user-info-item {
+            display: flex;
+            justify-content: space-between;
+            margin: 3px 0;
+        }
+        
+        .loading {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 10px;
+            color: #666;
+        }
+        
+        .loading-dots {
+            display: inline-block;
+        }
+        
+        .loading-dots::after {
+            content: '...';
+            animation: dots 1.5s steps(4, end) infinite;
+        }
+        
+        @keyframes dots {
+            0%, 20% { content: ''; }
+            40% { content: '.'; }
+            60% { content: '..'; }
+            80%, 100% { content: '...'; }
+        }
+        
+        .sources {
+            margin-top: 10px;
+            padding-top: 10px;
+            border-top: 1px dashed #ddd;
+            font-size: 0.85em;
+            color: #666;
+        }
+        
+        .memory-badge {
+            background: #ff9800;
+            color: white;
+            padding: 2px 8px;
+            border-radius: 12px;
+            font-size: 0.75em;
+            margin-left: 8px;
+        }
+        
+        .document-badge {
+            background: #4CAF50;
+            color: white;
+            padding: 2px 8px;
+            border-radius: 12px;
+            font-size: 0.75em;
+            margin-left: 8px;
+        }
+        
+        .badge {
+            display: inline-block;
+            padding: 2px 8px;
+            border-radius: 12px;
+            font-size: 0.75em;
+            font-weight: 600;
+            margin-left: 5px;
+        }
+        
+        .badge-memory {
+            background: #ff9800;
+            color: white;
+        }
+        
+        .badge-document {
+            background: #4CAF50;
+            color: white;
+        }
+        
+        .badge-model {
+            background: #9c27b0;
+            color: white;
+        }
+        
+        .session-actions {
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+            margin-top: 15px;
+        }
+        
+        .session-btn {
+            width: 100%;
+            padding: 8px;
+            font-size: 13px;
+        }
+        
+        .empty-state {
+            text-align: center;
+            padding: 30px 20px;
+            color: #999;
+            font-style: italic;
+        }
+        
+        .model-name {
+            font-size: 0.8em;
+            opacity: 0.7;
+            margin-left: 5px;
+            color: #666;
+            font-weight: normal;
+        }
+        
+        .document-source {
+            background: #e8f5e9;
+            border-radius: 4px;
+            padding: 6px 10px;
+            margin-top: 8px;
+            font-size: 0.85em;
+            border-left: 3px solid #4CAF50;
+        }
+        
+        .document-source-title {
+            font-weight: bold;
+            color: #2e7d32;
+            display: flex;
+            align-items: center;
+            gap: 5px;
+        }
+        
+        @media (max-width: 768px) {
+            .main-content {
+                flex-direction: column;
+            }
+            
+            .sidebar {
+                width: 100%;
+                border-right: none;
+                border-bottom: 1px solid #e9ecef;
+                max-height: 200px;
+            }
+            
+            .message {
+                max-width: 95%;
+            }
+            
+            .controls {
+                flex-direction: column;
+                align-items: stretch;
+            }
+            
+            .btn {
+                width: 100%;
+                justify-content: center;
+            }
+            
+            .session-actions {
+                flex-direction: row;
+            }
+        }
+        
+        @media (max-width: 480px) {
+            .container {
+                height: 100vh;
+                border-radius: 0;
+            }
+            
+            body {
+                padding: 0;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>🤖 RAG Chatbot with Memory</h1>
+            <p class="subtitle">Ask questions about documents • Remembers conversations • Shows document sources</p>
+        </header>
+        
+        <div class="main-content">
+            <!-- Sidebar -->
+            <div class="sidebar">
+                <!-- Documents Section -->
+                <div class="document-info">
+                    <h4>📁 Uploaded Documents</h4>
+                    <div id="documents-content">
+                        <div class="empty-state">No documents uploaded yet</div>
+                    </div>
+                </div>
+                
+                <!-- Session Information -->
+                <div class="session-info">
+                    <h4>💭 Session Memory</h4>
+                    <div id="session-details" class="session-details">
+                        <div>Session: <span id="session-id" style="font-family: monospace;">Loading...</span></div>
+                        <div>Messages: <span id="session-messages">0</span></div>
+                        <div>Age: <span id="session-age">0 min</span></div>
+                        
+                        <div id="user-info-container" class="user-info" style="display: none;">
+                            <strong>Known Information:</strong>
+                            <div id="user-info-content"></div>
+                        </div>
+                    </div>
+                    
+                    <div class="session-actions">
+                        <button class="btn btn-purple session-btn" onclick="newSession()">
+                            🆕 New Session
+                        </button>
+                        <button class="btn btn-warning session-btn" onclick="viewConversation()">
+                            📜 View History
+                        </button>
+                        <button class="btn btn-danger session-btn" onclick="clearSession()">
+                            🧹 Clear Memory
+                        </button>
+                    </div>
+                </div>
+                
+                <!-- System Status -->
+                <div class="document-info">
+                    <h4>⚙️ System Status</h4>
+                    <div id="system-status">Checking...</div>
+                </div>
+            </div>
+            
+            <!-- Main Chat Area -->
+            <div class="chat-area">
+                <!-- Controls -->
+                <div class="controls">
+                    <a href="/upload.html" class="btn btn-primary">
+                        📤 Upload Document
+                    </a>
+                    <button class="btn btn-secondary" onclick="loadDocuments()">
+                        🔄 Refresh Docs
+                    </button>
+                    <button class="btn btn-warning" onclick="showHelp()">
+                        ❓ Help
+                    </button>
+                    <div style="flex: 1;"></div>
+                    <button class="btn btn-danger" onclick="clearDatabase()">
+                        🗑️ Clear Everything
+                    </button>
+                </div>
+                
+                <!-- Chat Messages -->
+                <div id="chat-box">
+                    <div class="message bot">
+                        <div class="message-header">
+                            <span>🤖 Assistant <span class="model-name">(GPT-4o-mini)</span></span>
+                            <span class="message-time" id="current-time"></span>
+                        </div>
+                        <div>Hello! I'm your RAG assistant with memory. I can:</div>
+                        <ul style="margin-left: 20px; margin-top: 8px;">
+                            <li>Answer questions from uploaded documents</li>
+                            <li>Remember our conversation history</li>
+                            <li>Recall personal details you share (name, location, etc.)</li>
+                            <li>Show which document I'm using for answers</li>
+                            <li>Start fresh with "New Session" button</li>
+                        </ul>
+                    </div>
+                    
+                    <div id="status-message" class="status" style="display: none;"></div>
+                </div>
+                
+                <!-- Chat Input -->
+                <div class="chat-input">
+                    <input type="text" id="query" placeholder="Ask a question or share something about yourself... (Press Enter to send)">
+                    <button class="btn-send" onclick="sendQuery()">Send</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const chatBox = document.getElementById('chat-box');
+        const documentsContent = document.getElementById('documents-content');
+        const statusMessage = document.getElementById('status-message');
+        
+        // Session elements
+        const sessionIdElement = document.getElementById('session-id');
+        const sessionMessagesElement = document.getElementById('session-messages');
+        const sessionAgeElement = document.getElementById('session-age');
+        const userInfoContainer = document.getElementById('user-info-container');
+        const userInfoContent = document.getElementById('user-info-content');
+        const systemStatusElement = document.getElementById('system-status');
+        
+        let currentSessionId = null;
+        
+        // Set current time
+        function updateTime() {
+            const now = new Date();
+            const timeString = now.toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'});
+            document.getElementById('current-time').textContent = timeString;
+        }
+        
+        updateTime();
+        setInterval(updateTime, 60000);
+        
+        // Format message with badges and document source
+        function addMessage(text, sender, badges = [], modelName = null, sourceDocuments = [], id = null) {
+            const messageDiv = document.createElement('div');
+            messageDiv.className = `message ${sender}`;
+            
+            // Add memory class if from memory
+            if (badges.includes('memory')) {
+                messageDiv.classList.add('bot-memory');
+            }
+            
+            if (id) messageDiv.id = id;
+            
+            const headerDiv = document.createElement('div');
+            headerDiv.className = 'message-header';
+            
+            const senderSpan = document.createElement('span');
+            if (sender === 'bot' && modelName) {
+                senderSpan.innerHTML = `🤖 Assistant <span class="model-name">(${modelName})</span>`;
+            } else {
+                senderSpan.textContent = sender === 'user' ? '👤 You' : '🤖 Assistant';
+            }
+            
+            const timeSpan = document.createElement('span');
+            timeSpan.className = 'message-time';
+            timeSpan.textContent = new Date().toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'});
+            
+            headerDiv.appendChild(senderSpan);
+            headerDiv.appendChild(timeSpan);
+            
+            // Add badges if any
+            if (badges.length > 0) {
+                const badgeSpan = document.createElement('span');
+                badges.forEach(badge => {
+                    const badgeEl = document.createElement('span');
+                    badgeEl.className = `badge badge-${badge}`;
+                    badgeEl.textContent = badge === 'memory' ? 'From Memory' : 
+                                         badge === 'document' ? 'From Document' : badge;
+                    badgeSpan.appendChild(badgeEl);
+                });
+                
+                // Add model badge if available
+                if (modelName && sender === 'bot') {
+                    const modelBadge = document.createElement('span');
+                    modelBadge.className = 'badge badge-model';
+                    modelBadge.textContent = modelName;
+                    badgeSpan.appendChild(modelBadge);
+                }
+                
+                headerDiv.appendChild(badgeSpan);
+            }
+            
+            const contentDiv = document.createElement('div');
+            contentDiv.innerHTML = formatMessage(text);
+            
+            messageDiv.appendChild(headerDiv);
+            messageDiv.appendChild(contentDiv);
+            
+            // Add document source if available
+            if (sourceDocuments && sourceDocuments.length > 0 && sender === 'bot') {
+                const sourceDiv = document.createElement('div');
+                sourceDiv.className = 'document-source';
+                
+                const sourceTitle = document.createElement('div');
+                sourceTitle.className = 'document-source-title';
+                sourceTitle.innerHTML = '📄 <span>Source Document(s):</span>';
+                
+                const sourceList = document.createElement('div');
+                sourceList.style.marginTop = '5px';
+                
+                if (Array.isArray(sourceDocuments)) {
+                    sourceDocuments.forEach(doc => {
+                        const docItem = document.createElement('div');
+                        docItem.style.padding = '2px 0';
+                        docItem.style.display = 'flex';
+                        docItem.style.alignItems = 'center';
+                        docItem.style.gap = '5px';
+                        docItem.innerHTML = `<span style="color: #4CAF50;">•</span> ${doc}`;
+                        sourceList.appendChild(docItem);
+                    });
+                } else {
+                    const docItem = document.createElement('div');
+                    docItem.style.padding = '2px 0';
+                    docItem.style.display = 'flex';
+                    docItem.style.alignItems = 'center';
+                    docItem.style.gap = '5px';
+                    docItem.innerHTML = `<span style="color: #4CAF50;">•</span> ${sourceDocuments}`;
+                    sourceList.appendChild(docItem);
+                }
+                
+                sourceDiv.appendChild(sourceTitle);
+                sourceDiv.appendChild(sourceList);
+                messageDiv.appendChild(sourceDiv);
+            }
+            
+            chatBox.appendChild(messageDiv);
+            
+            // Scroll to bottom
+            chatBox.scrollTop = chatBox.scrollHeight;
+            
+            return messageDiv;
+        }
+        
+        function formatMessage(text) {
+            // Format text with basic markdown
+            let formatted = text
+                .replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>')
+                .replace(/\n/g, '<br>')
+                .replace(/^# (.*$)/gm, '<h3>$1</h3>')
+                .replace(/^## (.*$)/gm, '<h4>$1</h4>')
+                .replace(/^\d+\.\s+(.*$)/gm, '<li>$1</li>')
+                .replace(/^-\s+(.*$)/gm, '<li>$1</li>');
+            
+            // Wrap lists
+            formatted = formatted.replace(/(<li>.*?<\/li>)/g, '<ul>$1</ul>');
+            
+            return formatted;
+        }
+        
+        function addLoadingMessage() {
+            const loadingDiv = document.createElement('div');
+            loadingDiv.className = 'message bot loading';
+            loadingDiv.id = 'loading-message';
+            
+            loadingDiv.innerHTML = `
+                <div class="message-header">
+                    <span>🤖 Assistant <span class="model-name">(GPT-4o-mini)</span></span>
+                    <span class="message-time">${new Date().toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}</span>
+                </div>
+                <div>Thinking<span class="loading-dots"></span></div>
+            `;
+            
+            chatBox.appendChild(loadingDiv);
+            chatBox.scrollTop = chatBox.scrollHeight;
+        }
+        
+        function removeLoadingMessage() {
+            const loadingMsg = document.getElementById('loading-message');
+            if (loadingMsg) {
+                loadingMsg.remove();
+            }
+        }
+        
+        function showStatus(text, type = 'info', duration = 5000) {
+            statusMessage.textContent = text;
+            statusMessage.style.display = 'block';
+            statusMessage.style.background = type === 'error' ? '#ffebee' : 
+                                           type === 'success' ? '#e8f5e8' : '#e3f2fd';
+            statusMessage.style.color = type === 'error' ? '#c62828' : 
+                                       type === 'success' ? '#2e7d32' : '#1976C0';
+            
+            // Auto-hide
+            setTimeout(() => {
+                statusMessage.style.display = 'none';
+            }, duration);
+        }
+        
+        // Load session information
+        async function loadSessionInfo() {
+            try {
+                const response = await fetch('/session/info');
+                const data = await response.json();
+                
+                if (data.has_session) {
+                    currentSessionId = data.session_id;
+                    sessionIdElement.textContent = data.session_id;
+                    sessionMessagesElement.textContent = data.message_count;
+                    sessionAgeElement.textContent = `${data.session_age_minutes} min`;
+                    
+                    // Update user info if available
+                    if (data.user_info && Object.keys(data.user_info).length > 0) {
+                        userInfoContainer.style.display = 'block';
+                        userInfoContent.innerHTML = '';
+                        
+                        for (const [key, value] of Object.entries(data.user_info)) {
+                            const item = document.createElement('div');
+                            item.className = 'user-info-item';
+                            
+                            const keySpan = document.createElement('span');
+                            keySpan.textContent = key.charAt(0).toUpperCase() + key.slice(1) + ':';
+                            keySpan.style.fontWeight = 'bold';
+                            
+                            const valueSpan = document.createElement('span');
+                            valueSpan.textContent = value;
+                            
+                            item.appendChild(keySpan);
+                            item.appendChild(valueSpan);
+                            userInfoContent.appendChild(item);
+                        }
+                    } else {
+                        userInfoContainer.style.display = 'none';
+                    }
+                } else {
+                    sessionIdElement.textContent = 'No session';
+                    sessionMessagesElement.textContent = '0';
+                    userInfoContainer.style.display = 'none';
+                }
+            } catch (error) {
+                console.error('Error loading session info:', error);
+            }
+        }
+        
+        // Load system status
+        async function loadSystemStatus() {
+            try {
+                const response = await fetch('/status');
+                const data = await response.json();
+                
+                if (data.status === 'running') {
+                    systemStatusElement.innerHTML = `
+                        <div>✅ Backend: Running</div>
+                        <div>🤖 Model: ${data.embedding_model}</div>
+                        <div>📊 Chunks: ${data.total_chunks || 0}</div>
+                        <div>💾 Sessions: ${data.active_sessions || 0}</div>
+                        <div>🧠 LLM: GPT-4o-mini</div>
+                    `;
+                } else {
+                    systemStatusElement.innerHTML = `<div>❌ Backend: Error</div>`;
+                }
+            } catch (error) {
+                systemStatusElement.innerHTML = `<div>❌ Connection failed</div>`;
+                console.error('Error loading system status:', error);
+            }
+        }
+        
+        // Send query to backend
+        async function sendQuery() {
+            const queryInput = document.getElementById('query');
+            const query = queryInput.value.trim();
+            
+            if (!query) {
+                showStatus('Please enter a question or message', 'error', 3000);
+                return;
+            }
+            
+            // Add user message
+            addMessage(query, 'user');
+            queryInput.value = '';
+            
+            // Show loading
+            addLoadingMessage();
+            
+            try {
+                const response = await fetch(`/chat?query=${encodeURIComponent(query)}`);
+                const data = await response.json();
+                
+                // Remove loading
+                removeLoadingMessage();
+                
+                if (response.ok) {
+                    // Determine badges
+                    const badges = [];
+                    if (data.from_memory) badges.push('memory');
+                    if (data.found_in_document) badges.push('document');
+                    
+                    // Get source documents from response (assuming backend sends source_documents)
+                    const sourceDocuments = data.source_documents || [];
+                    
+                    // Get model name from response (assuming backend sends model_name)
+                    const modelName = data.model_name || 'GPT-4o-mini';
+                    
+                    // Add bot message with answer, model name, and source documents
+                    const botMessage = addMessage(data.answer, 'bot', badges, modelName, sourceDocuments);
+                    
+                    // Show appropriate status
+                    if (data.from_memory && data.user_info_available) {
+                        showStatus(`✓ Answered from conversation memory`, 'success', 4000);
+                    } else if (data.found_in_document) {
+                        const docCount = sourceDocuments.length || 1;
+                        const docNames = sourceDocuments.join(', ') || 'document';
+                        showStatus(`✓ Answered using ${docCount} document(s)`, 'success', 4000);
+                    }
+                    
+                    // Refresh session info
+                    await loadSessionInfo();
+                    
+                } else {
+                    addMessage(`Error: ${data.error || 'Unknown error'}`, 'bot');
+                    showStatus('Error getting response', 'error', 5000);
+                }
+            } catch (error) {
+                removeLoadingMessage();
+                addMessage('Error connecting to server. Make sure backend is running.', 'bot');
+                showStatus('Connection error', 'error', 5000);
+                console.error('Fetch error:', error);
+            }
+        }
+        
+        // Load documents list
+        async function loadDocuments() {
+            try {
+                showStatus('Loading documents...', 'info', 2000);
+                const response = await fetch('/documents');
+                const data = await response.json();
+                
+                if (data.success && data.documents && data.documents.length > 0) {
+                    documentsContent.innerHTML = '';
+                    
+                    data.documents.forEach(doc => {
+                        const docItem = document.createElement('div');
+                        docItem.className = 'document-item';
+                        docItem.innerHTML = `
+                            <span>📄 ${doc.filename}</span>
+                            <span style="color: #666; font-size: 0.9em;">${doc.chunks} chunks</span>
+                        `;
+                        documentsContent.appendChild(docItem);
+                    });
+                    
+                    const totalItem = document.createElement('div');
+                    totalItem.className = 'document-item';
+                    totalItem.style.fontWeight = 'bold';
+                    totalItem.style.marginTop = '10px';
+                    totalItem.style.paddingTop = '10px';
+                    totalItem.style.borderTop = '2px solid #e0e0e0';
+                    totalItem.innerHTML = `
+                        <span>Total:</span>
+                        <span>${data.total_chunks} chunks</span>
+                    `;
+                    documentsContent.appendChild(totalItem);
+                    
+                    showStatus(`Loaded ${data.documents.length} document(s)`, 'success', 3000);
+                } else {
+                    documentsContent.innerHTML = '<div class="empty-state">No documents uploaded yet</div>';
+                    showStatus('No documents uploaded yet', 'info', 3000);
+                }
+            } catch (error) {
+                documentsContent.innerHTML = '<div class="empty-state">Error loading documents</div>';
+                showStatus('Error loading documents', 'error', 3000);
+                console.error('Error loading documents:', error);
+            }
+        }
+        
+        // Clear entire database
+        async function clearDatabase() {
+            if (!confirm('Are you sure you want to clear ALL documents and ALL sessions? This cannot be undone.')) {
+                return;
+            }
+            
+            try {
+                showStatus('Clearing database and sessions...', 'info', 3000);
+                const response = await fetch('/clear', { method: 'POST' });
+                const data = await response.json();
+                
+                if (data.success) {
+                    showStatus('✅ Database and sessions cleared successfully', 'success', 5000);
+                    
+                    // Clear UI
+                    documentsContent.innerHTML = '<div class="empty-state">No documents uploaded yet</div>';
+                    userInfoContainer.style.display = 'none';
+                    sessionIdElement.textContent = 'New session';
+                    sessionMessagesElement.textContent = '0';
+                    
+                    // Add system message
+                    const systemMsg = addMessage('All documents and session memory have been cleared. Start fresh by uploading new documents.', 'bot', [], 'GPT-4o-mini');
+                    systemMsg.style.background = '#fff3e0';
+                    systemMsg.style.borderLeftColor = '#ff9800';
+                    
+                    // Refresh system status
+                    await loadSystemStatus();
+                    await loadSessionInfo();
+                } else {
+                    showStatus(`Error: ${data.error}`, 'error', 5000);
+                }
+            } catch (error) {
+                showStatus('Error clearing database', 'error', 5000);
+                console.error('Error clearing database:', error);
+            }
+        }
+        
+        // Start new session
+        async function newSession() {
+            if (!confirm('Start a new session? Your conversation history will be cleared, but documents remain.')) {
+                return;
+            }
+            
+            try {
+                showStatus('Starting new session...', 'info', 3000);
+                const response = await fetch('/session/new');
+                const data = await response.json();
+                
+                if (data.success) {
+                    showStatus(`✅ New session started: ${data.session_id}`, 'success', 5000);
+                    
+                    // Clear chat messages
+                    chatBox.innerHTML = '';
+                    
+                    // Add welcome message with model name
+                    addMessage(`🆕 New session started! I've forgotten our previous conversation. How can I help you today?`, 'bot', [], 'GPT-4o-mini');
+                    
+                    // Update session info
+                    await loadSessionInfo();
+                }
+            } catch (error) {
+                showStatus('Error starting new session', 'error', 5000);
+                console.error('Error starting new session:', error);
+            }
+        }
+        
+        // Clear only session memory
+        async function clearSession() {
+            if (!confirm('Clear only the session memory? Your documents will remain, but I will forget our conversation.')) {
+                return;
+            }
+            
+            try {
+                showStatus('Clearing session memory...', 'info', 3000);
+                const response = await fetch('/session/clear');
+                const data = await response.json();
+                
+                if (data.success) {
+                    showStatus('✅ Session memory cleared', 'success', 5000);
+                    
+                    // Clear chat messages
+                    chatBox.innerHTML = '';
+                    
+                    // Add message with model name
+                    addMessage('I have cleared my memory of our conversation. Your documents are still available.', 'bot', [], 'GPT-4o-mini');
+                    
+                    // Update session info
+                    await loadSessionInfo();
+                }
+            } catch (error) {
+                showStatus('Error clearing session', 'error', 5000);
+                console.error('Error clearing session:', error);
+            }
+        }
+        
+        // View conversation history
+        async function viewConversation() {
+            try {
+                const response = await fetch('/session/conversation');
+                const data = await response.json();
+                
+                if (data.conversation && data.conversation.length > 0) {
+                    let historyText = "Conversation History:\n\n";
+                    data.conversation.forEach(msg => {
+                        const role = msg.role === 'user' ? '👤 You' : '🤖 Assistant';
+                        const time = new Date(msg.timestamp).toLocaleTimeString();
+                        historyText += `${time} - ${role}: ${msg.content}\n\n`;
+                    });
+                    
+                    // Show in alert or could show in modal
+                    alert(historyText);
+                } else {
+                    alert('No conversation history available.');
+                }
+            } catch (error) {
+                alert('Error loading conversation history');
+                console.error('Error loading conversation:', error);
+            }
+        }
+        
+        // Clear chat only (not database)
+        function clearChat() {
+            if (confirm('Clear all chat messages? This does not affect documents or session memory.')) {
+                chatBox.innerHTML = '';
+                addMessage('Chat messages cleared. How can I help you?', 'bot', [], 'GPT-4o-mini');
+            }
+        }
+        
+        // Show help
+        function showHelp() {
+            addMessage(`
+                <strong>🤖 RAG Chatbot with Memory - Help Guide</strong><br><br>
+                
+                <strong>✨ New Features:</strong>
+                • <strong>Document Source Display:</strong> See which document answers come from
+                • <strong>Model Information:</strong> Shows GPT-4o-mini model name
+                • <strong>Session Memory:</strong> I remember our conversation
+                • <strong>Personal Info:</strong> I can recall your name, location, etc.
+                • <strong>Session Management:</strong> Start fresh anytime
+                
+                <strong>📁 Document Sources:</strong>
+                • When I answer from documents, you'll see "Source Document(s):" section
+                • Lists all documents used for the response
+                • Click "Refresh Docs" to see all uploaded documents
+                
+                <strong>🤖 Model Information:</strong>
+                • All responses show "(GPT-4o-mini)" next to my name
+                • Model badge appears in message header
+                • System status shows model details in sidebar
+                
+                <strong>💬 Chatting:</strong>
+                • <strong>Ask questions:</strong> "What does the document say about X?"
+                • <strong>Share info:</strong> "My name is Alishba"
+                • <strong>Recall info:</strong> "What is my name?"
+                
+                <strong>📊 Example Response:</strong>
+                <div style="background: #f5f5f5; padding: 10px; border-radius: 5px; margin: 10px 0;">
+                🤖 Assistant (GPT-4o-mini)<br>
+                [Answer text here...]<br>
+                <div style="background: #e8f5e9; padding: 8px; margin-top: 10px; border-radius: 4px;">
+                📄 <strong>Source Document(s):</strong><br>
+                • document1.pdf<br>
+                • document2.pdf
+                </div>
+                </div>
+                
+                <strong>💭 Session Panel:</strong>
+                • <strong>New Session:</strong> Start fresh conversation
+                • <strong>View History:</strong> See all messages
+                • <strong>Clear Memory:</strong> Forget conversation only
+                • <strong>Clear Everything:</strong> Remove all documents & sessions
+                
+                <strong>🎯 Memory Examples:</strong>
+                You: "My name is Alishba"<br>
+                You: "What is my name?"<br>
+                Me: "Your name is Alishba (from memory)"<br><br>
+                
+                <strong>🔄 Managing Data:</strong>
+                • Refresh Docs: Update document list
+                • Clear DB: Remove ALL data (documents + sessions)
+                • Clear Chat: Remove only chat display
+                
+                <strong>⚙️ Technical:</strong>
+                • Uses Azure OpenAI embeddings
+                • Stores vectors in ChromaDB
+                • Session data persists for 24 hours
+                • Conversation limited to last 20 messages
+                
+                <strong>⚠️ Privacy Note:</strong>
+                Session data is stored in server memory and cleared on restart.
+            `, 'bot', [], 'GPT-4o-mini');
+        }
+        
+        // Enter key support
+        document.getElementById('query').addEventListener('keypress', function(e) {
+            if (e.key === 'Enter') {
+                sendQuery();
+            }
+        });
+        
+        // Focus on input field
+        document.getElementById('query').focus();
+        
+        // Initialize on page load
+        window.addEventListener('load', async () => {
+            try {
+                // Check backend connection
+                const statusResponse = await fetch('/status');
+                const statusData = await statusResponse.json();
+                
+                if (statusData.status === 'running') {
+                    showStatus('✅ Backend connected successfully', 'success', 3000);
+                    
+                    // Load all data
+                    await Promise.all([
+                        loadDocuments(),
+                        loadSessionInfo(),
+                        loadSystemStatus()
+                    ]);
+                    
+                    // Show welcome with current session
+                    if (currentSessionId) {
+                        const welcomeMsg = addMessage(`Session ${currentSessionId} loaded. I remember our previous conversation. How can I help you?`, 'bot', [], 'GPT-4o-mini');
+                        welcomeMsg.style.background = '#e8f5e8';
+                        welcomeMsg.style.borderLeftColor = '#4CAF50';
+                    }
+                    
+                } else {
+                    showStatus('⚠️ Backend connection issue', 'error', 5000);
+                    addMessage('Backend server detected but there might be an issue. Please check the console.', 'bot', [], 'GPT-4o-mini');
+                }
+            } catch (error) {
+                showStatus('❌ Backend server not detected', 'error', 5000);
+                addMessage(`
+                    Please start the backend server first:<br><br>
+                    <code>cd backend<br>python app.py</code><br><br>
+                    Then refresh this page.
+                `, 'bot', [], 'GPT-4o-mini');
+            }
+        });
+        
+        // Auto-refresh session info every 30 seconds
+        setInterval(loadSessionInfo, 30000);
+        setInterval(loadSystemStatus, 60000);
+    </script>
+</body>
+</html>

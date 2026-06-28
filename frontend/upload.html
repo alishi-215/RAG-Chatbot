@@ -1,0 +1,444 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Upload Document - RAG System</title>
+    <style>
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+        
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 20px;
+            color: #333;
+        }
+        
+        .container {
+            max-width: 800px;
+            margin: 0 auto;
+            background: white;
+            border-radius: 15px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.2);
+            overflow: hidden;
+        }
+        
+        header {
+            background: linear-gradient(90deg, #4b6cb7 0%, #182848 100%);
+            color: white;
+            padding: 25px;
+            text-align: center;
+        }
+        
+        header h1 {
+            margin-bottom: 10px;
+            font-size: 2.2em;
+        }
+        
+        .subtitle {
+            opacity: 0.9;
+            font-size: 1.1em;
+        }
+        
+        .content {
+            padding: 30px;
+        }
+        
+        .upload-area {
+            border: 3px dashed #667eea;
+            border-radius: 12px;
+            padding: 40px;
+            text-align: center;
+            margin: 20px 0;
+            background: #f8f9ff;
+            transition: all 0.3s ease;
+            cursor: pointer;
+        }
+        
+        .upload-area:hover {
+            background: #f0f2ff;
+            border-color: #764ba2;
+        }
+        
+        .upload-icon {
+            font-size: 48px;
+            color: #667eea;
+            margin-bottom: 15px;
+        }
+        
+        .file-input {
+            display: none;
+        }
+        
+        .file-label {
+            background: linear-gradient(90deg, #667eea, #764ba2);
+            color: white;
+            padding: 12px 30px;
+            border-radius: 8px;
+            cursor: pointer;
+            display: inline-block;
+            font-weight: 600;
+            transition: all 0.3s ease;
+        }
+        
+        .file-label:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(102,126,234,0.4);
+        }
+        
+        .selected-file {
+            margin-top: 15px;
+            padding: 10px;
+            background: #e8f5e8;
+            border-radius: 5px;
+            color: #2e7d32;
+        }
+        
+        .btn {
+            padding: 12px 25px;
+            border: none;
+            border-radius: 8px;
+            font-size: 16px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            font-weight: 600;
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            margin: 5px;
+        }
+        
+        .btn-primary {
+            background: #4CAF50;
+            color: white;
+        }
+        
+        .btn-primary:hover {
+            background: #45a049;
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(76,175,80,0.3);
+        }
+        
+        .btn-secondary {
+            background: #2196F3;
+            color: white;
+        }
+        
+        .btn-secondary:hover {
+            background: #1976D2;
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(33,150,243,0.3);
+        }
+        
+        .btn-upload {
+            background: linear-gradient(90deg, #FF9800, #FF5722);
+            color: white;
+            padding: 15px 40px;
+            font-size: 18px;
+            margin-top: 20px;
+        }
+        
+        .btn-upload:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(255,152,0,0.4);
+        }
+        
+        .btn-upload:disabled {
+            background: #cccccc;
+            cursor: not-allowed;
+            transform: none;
+            box-shadow: none;
+        }
+        
+        #status {
+            margin-top: 20px;
+            padding: 15px;
+            border-radius: 8px;
+            text-align: center;
+            font-weight: 500;
+        }
+        
+        .status-success {
+            background: #e8f5e8;
+            color: #2e7d32;
+            border: 1px solid #c8e6c9;
+        }
+        
+        .status-error {
+            background: #ffebee;
+            color: #c62828;
+            border: 1px solid #ffcdd2;
+        }
+        
+        .status-info {
+            background: #e3f2fd;
+            color: #1565c0;
+            border: 1px solid #bbdefb;
+        }
+        
+        .status-processing {
+            background: #fff3e0;
+            color: #ef6c00;
+            border: 1px solid #ffe0b2;
+        }
+        
+        .supported-formats {
+            margin: 20px 0;
+            padding: 15px;
+            background: #f5f5f5;
+            border-radius: 8px;
+        }
+        
+        .format-item {
+            display: inline-block;
+            margin: 5px 10px;
+            padding: 8px 15px;
+            background: white;
+            border-radius: 5px;
+            font-weight: 500;
+        }
+        
+        .progress-bar {
+            width: 100%;
+            height: 10px;
+            background: #e0e0e0;
+            border-radius: 5px;
+            margin-top: 10px;
+            overflow: hidden;
+            display: none;
+        }
+        
+        .progress-fill {
+            height: 100%;
+            background: linear-gradient(90deg, #4CAF50, #8BC34A);
+            width: 0%;
+            transition: width 0.3s ease;
+        }
+        
+        @media (max-width: 600px) {
+            .content {
+                padding: 20px;
+            }
+            
+            .upload-area {
+                padding: 20px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>📄 Upload Document</h1>
+            <p class="subtitle">Upload your documents for AI-powered Q&A</p>
+        </header>
+        
+        <div class="content">
+            <button class="btn btn-secondary" onclick="window.location.href='/'">
+                ← Back to Chat
+            </button>
+            
+            <div class="supported-formats">
+                <h3>📋 Supported Formats:</h3>
+                <div class="format-item">📄 PDF Files</div>
+                <div class="format-item">📝 DOCX Files</div>
+                <div class="format-item">📝 TXT Files</div>
+            </div>
+            
+            <div class="upload-area" onclick="document.getElementById('fileInput').click()">
+                <div class="upload-icon">📁</div>
+                <h2>Drag & Drop or Click to Select</h2>
+                <p>Select a document to upload (Max 10MB)</p>
+                
+                <input type="file" id="fileInput" class="file-input" accept=".pdf,.docx,.txt" onchange="handleFileSelect()">
+                <label for="fileInput" class="file-label">Choose File</label>
+                
+                <div id="selectedFile" class="selected-file" style="display: none;">
+                    Selected: <span id="fileName"></span> (<span id="fileSize"></span>)
+                </div>
+            </div>
+            
+            <div style="text-align: center;">
+                <button id="uploadBtn" class="btn btn-upload" onclick="uploadFile()" disabled>
+                    ⬆️ Upload & Process Document
+                </button>
+                
+                <div class="progress-bar" id="progressBar">
+                    <div class="progress-fill" id="progressFill"></div>
+                </div>
+            </div>
+            
+            <div id="status"></div>
+            
+            <div class="status-info" style="margin-top: 30px; padding: 15px;">
+                <strong>ℹ️ What happens after upload?</strong>
+                <p style="margin-top: 10px;">
+                    1. Document is split into chunks<br>
+                    2. Each chunk is converted to vector embeddings<br>
+                    3. Vectors are stored in ChromaDB database<br>
+                    4. You can now ask questions about the document<br>
+                    5. AI will answer based on document content only
+                </p>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        let selectedFile = null;
+        
+        function handleFileSelect() {
+            const fileInput = document.getElementById('fileInput');
+            const selectedFileDiv = document.getElementById('selectedFile');
+            const fileNameSpan = document.getElementById('fileName');
+            const fileSizeSpan = document.getElementById('fileSize');
+            const uploadBtn = document.getElementById('uploadBtn');
+            
+            if (fileInput.files.length > 0) {
+                selectedFile = fileInput.files[0];
+                
+                // File size validation
+                const maxSize = 10 * 1024 * 1024; // 10MB
+                if (selectedFile.size > maxSize) {
+                    showStatus('File size exceeds 10MB limit', 'error');
+                    uploadBtn.disabled = true;
+                    selectedFileDiv.style.display = 'none';
+                    return;
+                }
+                
+                // File type validation
+                const validExtensions = ['.pdf', '.docx', '.txt'];
+                const fileExtension = selectedFile.name.substring(selectedFile.name.lastIndexOf('.')).toLowerCase();
+                
+                if (!validExtensions.includes(fileExtension)) {
+                    showStatus('Invalid file type. Please upload PDF, DOCX, or TXT files only.', 'error');
+                    uploadBtn.disabled = true;
+                    selectedFileDiv.style.display = 'none';
+                    return;
+                }
+                
+                // Show selected file info
+                fileNameSpan.textContent = selectedFile.name;
+                fileSizeSpan.textContent = formatFileSize(selectedFile.size);
+                selectedFileDiv.style.display = 'block';
+                
+                // Enable upload button
+                uploadBtn.disabled = false;
+                
+                showStatus('File selected. Click "Upload & Process Document" to proceed.', 'info');
+            } else {
+                selectedFileDiv.style.display = 'none';
+                uploadBtn.disabled = true;
+            }
+        }
+        
+        function formatFileSize(bytes) {
+            if (bytes === 0) return '0 Bytes';
+            const k = 1024;
+            const sizes = ['Bytes', 'KB', 'MB', 'GB'];
+            const i = Math.floor(Math.log(bytes) / Math.log(k));
+            return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
+        }
+        
+        function showStatus(message, type = 'info') {
+            const statusDiv = document.getElementById('status');
+            statusDiv.textContent = message;
+            statusDiv.className = `status status-${type}`;
+        }
+        
+        async function uploadFile() {
+            if (!selectedFile) {
+                showStatus('Please select a file first', 'error');
+                return;
+            }
+            
+            const formData = new FormData();
+            formData.append('file', selectedFile);
+            
+            const uploadBtn = document.getElementById('uploadBtn');
+            const progressBar = document.getElementById('progressBar');
+            const progressFill = document.getElementById('progressFill');
+            
+            // Disable upload button and show progress
+            uploadBtn.disabled = true;
+            uploadBtn.innerHTML = '⏳ Processing...';
+            progressBar.style.display = 'block';
+            progressFill.style.width = '30%';
+            
+            showStatus('Uploading document...', 'processing');
+            
+            try {
+                // Simulate progress
+                const progressInterval = setInterval(() => {
+                    const currentWidth = parseInt(progressFill.style.width);
+                    if (currentWidth < 90) {
+                        progressFill.style.width = (currentWidth + 10) + '%';
+                    }
+                }, 500);
+                
+                const response = await fetch('/upload', {
+                    method: 'POST',
+                    body: formData
+                });
+                
+                clearInterval(progressInterval);
+                progressFill.style.width = '100%';
+                
+                const result = await response.json();
+                
+                if (response.ok) {
+                    showStatus('✅ ' + result.message, 'success');
+                    uploadBtn.innerHTML = '✅ Upload Successful';
+                    
+                    // Reset after 3 seconds
+                    setTimeout(() => {
+                        window.location.href = '/';
+                    }, 3000);
+                } else {
+                    showStatus('❌ ' + result.error, 'error');
+                    uploadBtn.disabled = false;
+                    uploadBtn.innerHTML = '⬆️ Try Again';
+                    progressBar.style.display = 'none';
+                }
+                
+            } catch (error) {
+                showStatus('❌ Upload failed: ' + error.message, 'error');
+                uploadBtn.disabled = false;
+                uploadBtn.innerHTML = '⬆️ Try Again';
+                progressBar.style.display = 'none';
+            }
+        }
+        
+        // Drag and drop functionality
+        const uploadArea = document.querySelector('.upload-area');
+        
+        uploadArea.addEventListener('dragover', (e) => {
+            e.preventDefault();
+            uploadArea.style.borderColor = '#764ba2';
+            uploadArea.style.background = '#f0f2ff';
+        });
+        
+        uploadArea.addEventListener('dragleave', (e) => {
+            e.preventDefault();
+            uploadArea.style.borderColor = '#667eea';
+            uploadArea.style.background = '#f8f9ff';
+        });
+        
+        uploadArea.addEventListener('drop', (e) => {
+            e.preventDefault();
+            uploadArea.style.borderColor = '#667eea';
+            uploadArea.style.background = '#f8f9ff';
+            
+            if (e.dataTransfer.files.length) {
+                document.getElementById('fileInput').files = e.dataTransfer.files;
+                handleFileSelect();
+            }
+        });
+        
+        // Initialize
+        showStatus('Select a file to upload', 'info');
+    </script>
+</body>
+</html>
